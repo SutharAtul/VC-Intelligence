@@ -1,7 +1,5 @@
 import express from "express";
-// import cors from "cors";
-const cors = require("cors");
-
+import cors from "cors";
 import dotenv from "dotenv";
 import axios from "axios";
 import * as cheerio from "cheerio";
