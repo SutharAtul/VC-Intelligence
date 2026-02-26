@@ -107,8 +107,6 @@ vc-intelligence/
 │
 ├── backend/
 │   ├── server.js
-│   ├── scraper.js
-│   ├── llm.js
 │   ├── .env
 │   └── ...
 │
