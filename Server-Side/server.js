@@ -1,47 +1,51 @@
-import express from "express"
-import cors from "cors"
-import dotenv from "dotenv"
-import axios from "axios"
-import * as cheerio from "cheerio"
+import express from "express";
+// import cors from "cors";
+const cors = require("cors");
 
-dotenv.config()
+import dotenv from "dotenv";
+import axios from "axios";
+import * as cheerio from "cheerio";
 
-const app = express()
+dotenv.config();
+
+const app = express();
 
 // Middlewares
-app.use(cors())
-app.use(express.json())
+app.use(cors({
+  origin: "*", // we will restrict later
+}));
+app.use(express.json());
 
 // Simple test route
 app.get("/", (req, res) => {
-  res.send("Backend is running")
-})
+  res.send("Backend is running");
+});
 
 /*
   MAIN ENRICHMENT ROUTE
 */
 app.post("/api/enrich", async (req, res) => {
   try {
-    const { website } = req.body
+    const { website } = req.body;
 
     if (!website) {
-      return res.status(400).json({ error: "Website is required" })
+      return res.status(400).json({ error: "Website is required" });
     }
 
-    console.log("Scraping website:", website)
+    console.log("Scraping website:", website);
 
     // 1️⃣ Fetch website HTML
-    const response = await axios.get(website)
-    const html = response.data
+    const response = await axios.get(website);
+    const html = response.data;
 
     // 2️⃣ Extract text using cheerio
-    const $ = cheerio.load(html)
-    const text = $("body").text().replace(/\s+/g, " ").trim()
+    const $ = cheerio.load(html);
+    const text = $("body").text().replace(/\s+/g, " ").trim();
 
     // Limit text size (important for AI token limits)
-    const limitedText = text.slice(0, 5000)
+    const limitedText = text.slice(0, 5000);
 
-    console.log("Sending content to OpenRouter...")
+    console.log("Sending content to OpenRouter...");
 
     // 3️⃣ Send to OpenRouter
     const aiResponse = await axios.post(
@@ -54,7 +58,7 @@ app.post("/api/enrich", async (req, res) => {
           {
             role: "system",
             content:
-              "You extract structured company information in clean JSON format only."
+              "You extract structured company information in clean JSON format only.",
           },
           {
             role: "user",
@@ -70,51 +74,50 @@ Return ONLY valid JSON.
 
 Website content:
 ${limitedText}
-`
-          }
-        ]
+`,
+          },
+        ],
       },
       {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    )
+          "Content-Type": "application/json",
+        },
+      },
+    );
 
     // const aiResult = aiResponse.data.choices[0].message.content
 
-    let aiResult = aiResponse.data.choices[0].message.content
+    let aiResult = aiResponse.data.choices[0].message.content;
 
     // Remove markdown ```json ```
     if (aiResult.startsWith("```")) {
-    aiResult = aiResult.replace(/```json/g, "")
-    aiResult = aiResult.replace(/```/g, "")
+      aiResult = aiResult.replace(/```json/g, "");
+      aiResult = aiResult.replace(/```/g, "");
     }
 
     // Trim spaces
-    aiResult = aiResult.trim()
+    aiResult = aiResult.trim();
 
     // Convert string to real JSON
-    const parsedResult = JSON.parse(aiResult)
+    const parsedResult = JSON.parse(aiResult);
 
     res.json({
-    success: true,
-    data: parsedResult,
-    source: website,
-    timestamp: new Date()
-    })
-
+      success: true,
+      data: parsedResult,
+      source: website,
+      timestamp: new Date(),
+    });
   } catch (error) {
-    console.error("Error:", error.response?.data || error.message)
+    console.error("Error:", error.response?.data || error.message);
     res.status(500).json({
       error: "Enrichment failed",
-      details: error.response?.data || error.message
-    })
+      details: error.response?.data || error.message,
+    });
   }
-})
+});
 
 // Start server
 app.listen(5000, () => {
-  console.log("Server running on port 5000")
-})
+  console.log("Server running on port 5000");
+});
